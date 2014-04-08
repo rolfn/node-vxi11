@@ -14,4 +14,6 @@ var vxi11 = require('vxi11');
 ...
 ```
 
+## Release History
 
+* 0.1.0 Initial release

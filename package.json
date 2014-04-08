@@ -1,0 +1,23 @@
+{
+  "name": "node-vxi11",
+  "version": "0.1.0",
+  "description": "A nodejs module for VXI-11 communication.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@a73435.berlin.ptb.de:rolf.niepraschk/node-vxi11.git"
+  },
+  "keywords": [
+    "VXI-11"
+  ],
+  "author": "Rolf Niepraschk <Rolf.Niepraschk@gmx.de>",
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "https://github.com/brentertz/scapegoat/blob/master/LICENSE-MIT"
+    }
+  ]
+}
