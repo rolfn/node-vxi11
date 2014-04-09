@@ -124,14 +124,11 @@ function createClient(clnt, clbk) {
 }
 
 function vxiReceive(clbk) {
-  if (typeof clbk == 'function') clbk(str);
+  if (typeof clbk == 'function') clbk('Fridolin');
 }
 
 function vxiSend(clink, str, clbk) {
   var nb;
-
-
-
   if (typeof clbk == 'function') clbk(nb);
 }
 
@@ -150,7 +147,10 @@ function vxiOpenDevice(host, device, clbk) {
 vxiOpenDevice(HOST, DEVICE, function(clink) {
   console.log('clink: ' + util.inspect(clink, { depth: 0 }));
   vxiSend(clink, CMD, function() {
-    vxiCloseDevice(clink);
+    vxiReceive(function(result) {
+      console.log('result: ' +  result);
+      vxiCloseDevice(clink);
+    });
   });
 });
 
