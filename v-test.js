@@ -21,9 +21,21 @@ var READ_TIMEOUT = 2047;
 
 var DEVICE_CORE_PROG = 0x0607af;
 var DEVICE_CORE_VERS = 1;
-var DEVICE_READ = 12;
-var DEVICE_WRITE = 11;
 var CREATE_LINK = 10;
+var DEVICE_WRITE = 11;
+var DEVICE_READ = 12;
+var DEVICE_READSTB = 13;
+var DEVICE_TRIGGER = 14;
+var DEVICE_CLEAR = 15;
+var DEVICE_REMOTE = 16;
+var DEVICE_LOCAL = 17;
+var DEVICE_LOCK = 18;
+var DEVICE_UNLOCK = 19;
+var DEVICE_ENABLE_SRQ = 20;
+var DEVICE_DOCMD = 22;
+var DESTROY_LINK = 23;
+var CREATE_INTR_CHAN = 25;
+var DESTROY_INTR_CHAN = 26
 
 /*
 
@@ -50,7 +62,7 @@ function next2(host, port, client, link_ID) {
   buf = new Buffer(68);
   buf.writeUInt32BE(0x80000044, 0);	// Fragment haeder und len
   //vxi_ID.copy(buf,4,0,4);				// XID  Copy aus Zufallszahl!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  crypto.randomBytes(4).copy(buf, 4, 0, 4); // ???
+  crypto.randomBytes(4).copy(buf, 4); // ???
   buf.writeUInt32BE(0x00000000, 8);	// Messagetyp call   0=Call
   buf.writeUInt32BE(0x00000002, 12);	// RPC version 2
   buf.writeUInt32BE(DEVICE_CORE_PROG, 16);  // Device core
@@ -108,7 +120,7 @@ function next1(host, port) {
   var buf = new Buffer (68);
 
   buf.writeUInt32BE(0x80000040, 0); //Fragment header and data size
-  crypto.randomBytes(4).copy(buf, 4, 0, 4); // ???
+  crypto.randomBytes(4).copy(buf, 4); // ???
   buf.writeUInt32BE(0x00000000, 8); //	Message type call    0=Call
   buf.writeUInt32BE(0x00000002, 12);//	RPC Version 2
   buf.writeUInt32BE(DEVICE_CORE_PROG, 16);//	Device core
@@ -170,7 +182,7 @@ function next1(host, port) {
 
     var buf = new Buffer(64 + message_length);			//Sende Buffer anlegen
     buf.writeUInt32BE(0x80000044, 0);	//Fragment header and data size  (first bit 1=last fragment)
-    crypto.randomBytes(4).copy(buf, 4, 0, 4); // ???
+    crypto.randomBytes(4).copy(buf, 4); // ???
     buf.writeUInt32BE(0x00000000, 8);	//Message type call 0=Call
     buf.writeUInt32BE(0x00000002, 12);	//RPC Version
     buf.writeUInt32BE(DEVICE_CORE_PROG, 16);  	//Device core
@@ -271,7 +283,7 @@ udp.on('message', function (msg, rinfo) {
 var buf = new Buffer(56);           //Sende Buffer anlegen
 //buf2.copy(buf,0,0,4);               //xid Copy aus Zufallszahl
 ///buf.writeUInt32BE(0x303b6352, 0);       // provisorisch
-crypto.randomBytes(4).copy(buf, 0, 0, 4); // ???
+crypto.randomBytes(4).copy(buf, 0); // ???
 buf.writeUInt32BE(0x00000000, 4);   //MessageTyp festlegen  0=Call
 buf.writeUInt32BE(0x00000002, 8);   //RPC Version festlegen
 buf.writeUInt32BE(0x000186a0, 12);  //Programm Portmap festlegen
