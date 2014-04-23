@@ -15,8 +15,13 @@ var HOST = '172.30.56.65';
 var DEVICE = 'gpib0,10';
 var INITIAL_PORT = 111;
 
-var CMD = '*IDN?\n';
-var CMD = 'DATA?';
+var CMD = '*IDN?';
+//var CMD = 'DATA?';
+//var CMD = '*RST;*OPC?';
+//var CMD = '*OPC?';
+//var CMD = 'DATA?;DATA?';
+//var CMD = 'DATA?';
+
 var READ_TIMEOUT = 2047;
 
 var DEVICE_CORE_PROG = 0x0607af;
@@ -35,7 +40,10 @@ var DEVICE_ENABLE_SRQ = 20;
 var DEVICE_DOCMD = 22;
 var DESTROY_LINK = 23;
 var CREATE_INTR_CHAN = 25;
-var DESTROY_INTR_CHAN = 26
+var DESTROY_INTR_CHAN = 26;
+
+var LAST_RECORD = 0x80000000;
+var DATA_SIZE = 64; //
 
 /*
 
@@ -88,9 +96,10 @@ function next2(host, port, client, link_ID) {
   console.log('VXI_receive time_out (hex): ' + hex);
   console.log('VXI_receive time_out: ' + time_out);
 
-  buf.writeUInt32BE(time_out, 52);		// I/O Time out
-  buf.writeUInt32BE(time_out, 56);		// lock Time out
-  buf.writeUInt32BE(0x00000001, 60);  	// Flag
+  //buf.writeUInt32BE(time_out, 52);		// I/O Time out
+  //buf.writeUInt32BE(time_out, 56);		// lock Time out
+  buf.writeUInt32BE(0x00000001, 60);  	// Flags    ???
+  buf.writeUInt32BE(0x00000000, 60);  	// Flags    ???
   buf.writeUInt32BE(0x0000000a, 64);  	// termination character
 
   client.setNoDelay(true); // Früher?
@@ -108,6 +117,7 @@ function next2(host, port, client, link_ID) {
       client.end();
     } else {
       console.log('receive request data (1): ' + util.inspect(data));
+      ///client.end();
     }
   });
 
@@ -119,7 +129,8 @@ function next1(host, port) {
 
   var buf = new Buffer (68);
 
-  buf.writeUInt32BE(0x80000040, 0); //Fragment header and data size
+  ///buf.writeUInt32BE(0x80000040, 0); //Fragment header and data size
+  buf.writeUInt32BE(LAST_RECORD + DATA_SIZE, 0); //Fragment header and data size
   crypto.randomBytes(4).copy(buf, 4); // ???
   buf.writeUInt32BE(0x00000000, 8); //	Message type call    0=Call
   buf.writeUInt32BE(0x00000002, 12);//	RPC Version 2
@@ -143,45 +154,52 @@ function next1(host, port) {
     client.write(buf);
   });
 
+/*
   client.on('data', function(data) {
     /// ???
   });
-
+*/
   client.once('data', function(data) {
     console.log('client data: ' + util.inspect(data));
     /// ID-Check!
     /// VXI_send.vxi11_send(sendReady, link, cmd);
 
+    var xid = data.readUInt32BE(4);
+    var client_id = data.readUInt32BE(32);
+    console.log('xid: ' +  xid);
+    console.log('client_id: ' +  client_id.toString(16));
+
    var cmd = new Buffer(CMD, 'ascii');
    var message_length = cmd.length;
+   console.log('*** message_length: ' + message_length);
 
    var buf_link_ID = new Buffer(4);
    data.copy(buf_link_ID, 0, 32, 36);
 
-   if (message_length % 4 == 3){
-     message_length = message_length +1;
-     var tmpbuf = new Buffer (message_length);
-     cmd.copy(tmpbuf,0,0,cmd.length);
-     tmpbuf.writeUInt8BE(0x00, cmd.length);
-   }
-   if (message_length % 4 == 2){
-     console.log(message_length % 4);
-     message_length = message_length +2;
-     var tmpbuf = new Buffer (message_length);
-     cmd.copy(tmpbuf,0,0,cmd.length);
-     tmpbuf.writeUInt16BE(0x0000, cmd.length);
-   }
-   if (message_length % 4 == 1){
-     console.log('VXI_send 3:' + message_length % 4);
-     message_length = message_length +3;
-     var tmpbuf = new Buffer (message_length);
-     cmd.copy(tmpbuf,0,0,cmd.length);
-     //tmpbuf.writeUInt8BE(0x00, cmd.length);
-     //tmpbuf.writeUInt16BE(0x0000, cmd.length+1);
-   }
+   console.log('CMD: >>' + CMD + '<<');
 
-    var buf = new Buffer(64 + message_length);			//Sende Buffer anlegen
+   var cmd = new Buffer(CMD, 'ascii');
+   var message_length = cmd.length + (4 - (cmd.length % 4)); // Vielfache von 4 Byte
+   //var message_length = cmd.length + (8 - (cmd.length % 8)); // Vielfache von 8 Byte
+
+   var tmpbuf = new Buffer (message_length);
+   tmpbuf.fill(0);
+   cmd.copy(tmpbuf);
+   console.log('message_length: ' + message_length);
+
+   console.log('tmpbuf: ' + util.inspect(tmpbuf));
+
+   var buf = new Buffer(64 + message_length);			//Sende Buffer anlegen
+
+   console.log('0x80000000: ', 0x80000000);
+   console.log('0x80000044: ', 0x80000044);
+   console.log('0x80000000 + 68: ', 0x80000000 + 68);
+   console.log('0x80000000 + buf.length: ', 0x80000000 + buf.length);
+
     buf.writeUInt32BE(0x80000044, 0);	//Fragment header and data size  (first bit 1=last fragment)
+    //buf.writeUInt32BE(0x80000000 | buf.length, 0);
+    //Fragment header and data size  (first bit 1=last fragment)
+    buf.writeUInt32BE(0x80000000 + buf.length - 4, 0); // !!!
     crypto.randomBytes(4).copy(buf, 4); // ???
     buf.writeUInt32BE(0x00000000, 8);	//Message type call 0=Call
     buf.writeUInt32BE(0x00000002, 12);	//RPC Version
@@ -195,36 +213,30 @@ function next1(host, port) {
     buf.writeUInt32BE(0x00000000, 40);  //verifier
 
     //buf.writeUInt32BE(link[5],44);
-    buf_link_ID.copy(buf, 44);
+    //buf_link_ID.copy(buf, 44);
+
+
+
+
+    ///data.copy(buf, 44, 32, 36);
+    buf.writeUInt32BE(client_id, 44);
+
+
+    //var CLIENT_ID = 0x63890750;
+
+    //buf.writeUInt32BE(CLIENT_ID, 44);
 
     buf.writeUInt32BE(0x000007d0, 48);  //I/O Time out
     buf.writeUInt32BE(0x000007d0, 52);  //lock Time out
     buf.writeUInt32BE(0x00000008, 56);  //flag END
 
     //MEssage size----------------------------------------------
-    var size = cmd.length.toString(16);
-    switch (size.length){
-
-    case 1:var sizefill_1 = "0000000";
-    break;
-    case 2:var sizefill_1 = "000000";
-    break;
-    case 3:var sizefill_1 = "00000";
-    break;
-    case 4:var sizefill_1 = "0000";
-    break;
-    case 5:var sizefill_1 = "000";
-    break;
-    case 6:var sizefill_1 = "00";
-    break;
-    case 7:var sizefill_1 = "0";
-    break;
-    }
-    size = sizefill_1 +size;
-    //MEssage size----------------------------------------------
       buf.writeUInt32BE(0x00000006, 60);  //data len
+      buf.writeUInt32BE(message_length, 60);  //data len
+      buf.writeUInt32BE(CMD.length, 60);  //data len  !!!
       //--------------------------------------
-      tmpbuf.copy(buf,64,0,message_length);		//Message in Send Buffer copy
+      //tmpbuf.copy(buf,64,0,message_length);		//Message in Send Buffer copy
+      tmpbuf.copy(buf,64);		//Message in Send Buffer copy
     //-----------------------------------------------------------
     require('buffer').INSPECT_MAX_BYTES = 500; // ???
     ///buf.INSPECT_MAX_BYTES = 500;
