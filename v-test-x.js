@@ -104,61 +104,40 @@ function vxiOpenDevice(host, device, clbk) {
   buf.writeUInt32BE(IPPROTO_TCP, 48);
   buf.writeUInt32BE(0, 52);  // Port
 
-  socket.on('listening', function () {
-    var a = socket.address();
-    console.log('udp socket listening: '  + a.address + ':'  + a.port);
-  });
-
-  socket.on('close', function () {
-    console.log('udp socket closed');
-  });
-
-  socket.on('message', function (msg, rinfo) {
-    console.log('udp socket message: ' + util.inspect(msg));
-    console.log('udp socket message.length: ' + msg.length);
+  socket.on('message', function (data, rinfo) {
+    console.log('GETPORT reply');
+    console.log('buf[%d]: %s', data.length, util.inspect(data));
 
     /// TODO: ID-Check!
-    var xid1 = clink.xid.readUInt32BE(0);
-    var xid2 = msg.readUInt32BE(0);
+    var oldXid = clink.xid.readUInt32BE(0);
+    var newXid = data.readUInt32BE(0);
 
-    console.log('xid1=%s    xid2=%s', xid1, xid2);
-
-    clink.port = msg.readUInt32BE(PORT_OFFS);
+    clink.port = data.readUInt32BE(PORT_OFFS);
 
     socket.close();
 
     if (typeof clbk == 'function') clbk(clink);
   });
 
-  socket.send(buf, 0, buf.length, PMAP_PORT, HOST, function(err, bytes) {
-    if (err) {
-      console.log('udp socket send error: ' +  err);
-    } else {
-      console.log('udp socket sended: ' +  bytes);
-    }
-  });
-
+  console.log('GETPORT call');
+  console.log('buf[%d]: %s', buf.length, util.inspect(buf));
+  socket.send(buf, 0, buf.length, PMAP_PORT, host);
 }
 
 function vxiReceive(clink, clbk) {
-
   var client = clink.socket;
   clink.xid = crypto.randomBytes(4);
 
-  client.on('data', function(data) {
-
-    if (data.length > 36) {
-
-      console.log('"DEVICE_READ" reply (2)');
-      console.log('buf[%s]: ', data.length, util.inspect(data));
-      var len =  data.readInt32BE(36);
-      var str = data.toString('ascii', 40, len + 40);
-      console.log('data length: ' + len);
-      if (typeof clbk == 'function') clbk(clink, str);
-    } else {
-      console.log('"DEVICE_READ" reply (1)');
-      console.log('buf[%s]: ', data.length, util.inspect(data));
-    }
+  client.once('data', function(data) {
+    /// TODO: ID-Check!
+    var oldXid = clink.xid.readUInt32BE(0);
+    var newXid = data.readUInt32BE(4);
+    console.log('DEVICE_READ reply');
+    console.log('buf[%d]: %s', data.length, util.inspect(data));
+    var len =  data.readInt32BE(36);
+    var str = data.toString('ascii', 40, 40 + len);
+    console.log('data length: ' + len);
+    if (typeof clbk == 'function') clbk(clink, str);
   });
 
   buf = new Buffer(68);
@@ -181,26 +160,23 @@ function vxiReceive(clink, clbk) {
   // Bit0: Wait until locked -- Bit3: Set EOI -- Bit7: Termination character set
   buf.writeUInt32BE(0x00000000, 64);  // termination character
 
-  console.log('"DEVICE_READ" call');
-  console.log('buf[%s]: ', buf.length, util.inspect(buf));
+  console.log('DEVICE_READ call');
+  console.log('buf[%d]: %s', buf.length, util.inspect(buf));
 
-  client.setNoDelay(true); // TODO: Früher?
   client.write(buf);
-
 }
 
 function vxiSend(clink, cmd, clbk) {
-  var nb;
   var client = clink.socket = net.connect(clink.port, clink.host);
-  clink.xid = crypto.randomBytes(4);
+  clink.socket.setNoDelay(true);
 
   client.once('data', function(data) {
-    console.log('client data: ' + util.inspect(data));
+    console.log('CREATE_LINK reply');
+    console.log('buf[%d]: %s', data.length, util.inspect(data));
     /// TODO: ID-Check!
-    var str = clink.xid.readUInt32BE(0);
-    var xid2 = data.readUInt32BE(4);
+    var oldXid = clink.xid.readUInt32BE(0);
+    var newXid = data.readUInt32BE(4);
     clink.link_id = data.readUInt32BE(32);
-    console.log('str=%s    xid2=%s    link_id=%s', str, xid2, clink.link_id);
     var mLength = cmd.length + (4 - (cmd.length % 4)); // multiple 4 Byte
     var tmpbuf = new Buffer(mLength);
     tmpbuf.fill(0);
@@ -224,12 +200,14 @@ function vxiSend(clink, cmd, clbk) {
     buf.writeUInt32BE(END_FLAG, 56);
     buf.writeUInt32BE(cmd.length, 60);
     tmpbuf.copy(buf,64);
-    console.log('"DEVICE_WRITE" call');
-    console.log('buf[%s]: ', buf.length, util.inspect(buf));
+    console.log('DEVICE_WRITE call');
+    console.log('buf[%d]: %s', buf.length, util.inspect(buf));
 
     client.once('data', function(data) {
-      console.log('"DEVICE_WRITE" reply');
-      console.log('buf[%s]: ', data.length, util.inspect(data));
+      console.log('DEVICE_WRITE reply');
+      console.log('buf[%d]: %s', data.length, util.inspect(data));
+      var oldXid = clink.xid.readUInt32BE(0);
+      var newXid = data.readUInt32BE(4);
       if (typeof clbk == 'function') clbk(clink);
     });
 
@@ -239,6 +217,7 @@ function vxiSend(clink, cmd, clbk) {
   client.on('connect', function() {
     console.log('client connected');
 
+    clink.xid = crypto.randomBytes(4);
     var buf = new Buffer (68);
 
     buf.writeUInt32BE(LAST_RECORD + buf.length - 4, 0);
@@ -257,14 +236,13 @@ function vxiSend(clink, cmd, clbk) {
     buf.writeUInt32BE(0, 52);//  lock time out
     buf.writeUInt32BE(DEVICE.length, 56);
     new Buffer(DEVICE, 'ascii').copy(buf, 60, 0, DEVICE.length);
-
+    console.log('CREATE_LINK call');
+    console.log('buf[%d]: %s', buf.length, util.inspect(buf));
     client.write(buf);
   });
 }
 
 function vxiCloseDevice(clink, clbk) {
-  /// TODO: "DESTROY_LINK" !!!
-
   var client = clink.socket;
 
   client.on('end', function(data) {
@@ -273,8 +251,10 @@ function vxiCloseDevice(clink, clbk) {
   });
 
   client.once('data', function(data) {
-    console.log('"DESTROY_LINK" reply');
-    console.log('buf[%s]: ', data.length, util.inspect(data));
+    console.log('DESTROY_LINK reply');
+    console.log('buf[%d]: %s', data.length, util.inspect(data));
+    var oldXid = clink.xid.readUInt32BE(0);
+    var newXid = data.readUInt32BE(4);
     clink.socket.end();
   });
 
@@ -294,8 +274,8 @@ function vxiCloseDevice(clink, clbk) {
   buf.writeUInt32BE(0, 40);//  verifier
   buf.writeUInt32BE(clink.link_id, 44);
 
-  console.log('"DESTROY_LINK" call');
-  console.log('buf[%s]: ', buf.length, util.inspect(buf));
+  console.log('DESTROY_LINK call');
+  console.log('buf[%d]: %s', buf.length, util.inspect(buf));
   client.write(buf);
 }
 
