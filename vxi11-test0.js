@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /*
   Rolf Niepraschk, Rolf.Niepraschk@ptb.de, 2014-04-24
 */
@@ -17,7 +19,6 @@ var DEVICE = 'gpib0,10';
 var CMD = '*RST;*OPC?';
 var CMD = '*IDN?\n';
 
-var VXI11_READ_TIMEOUT = 2000; /* in ms */
 var VXI11_IO_TIMEOUT = 10000; /* in ms */
 var VXI11_LOCK_TIMEOUT = 10000; /* in ms */
 var REQUEST_SIZE = 1024;
@@ -76,39 +77,46 @@ var IPPROTO_UDP = 17;
 
 var PORT_OFFS = 24;
 
-function vxiCloseDevice(clink, clbk) {
-  var client = clink.socket;
+function vxiOpenDevice(host, device, clbk) {
+  var clink = {};
+  clink.host = host;
+  clink.device = device;
 
-  client.on('end', function(data) {
-    console.log('client disconnected');
-    if (typeof clbk == 'function') clbk();
-  });
-
-  client.once('data', function(data) {
-    console.log('DESTROY_LINK reply [%d]: %s', data.length, util.inspect(data));
-    var oldXid = clink.xid.readUInt32BE(0);
-    var newXid = data.readUInt32BE(4);
-    clink.socket.end();
-  });
+  var socket = dgram.createSocket('udp4');
 
   clink.xid = crypto.randomBytes(4);
-  var buf = new Buffer (48);
 
-  buf.writeUInt32BE(LAST_RECORD + buf.length - 4, 0);
-  clink.xid.copy(buf, 4);
-  buf.writeUInt32BE(CALL, 8);
-  buf.writeUInt32BE(RPC_VERSION, 12);
-  buf.writeUInt32BE(DEVICE_CORE_PROG, 16);
-  buf.writeUInt32BE(DEVICE_CORE_VERS, 20);
-  buf.writeUInt32BE(DESTROY_LINK, 24);
-  buf.writeUInt32BE(0, 28);// credentials
-  buf.writeUInt32BE(0, 32);// credentials
-  buf.writeUInt32BE(0, 36);// verifier
-  buf.writeUInt32BE(0, 40);// verifier
-  buf.writeUInt32BE(clink.link_id, 44);
+  var buf = new Buffer(56);
+  clink.xid.copy(buf, 0);
+  buf.writeUInt32BE(CALL, 4);
+  buf.writeUInt32BE(RPC_VERSION, 8);
+  buf.writeUInt32BE(PMAP_PROG,  12);
+  buf.writeUInt32BE(PMAP_VERS,  16);
+  buf.writeUInt32BE(PMAPPROC_GETPORT, 20);
+  buf.writeUInt32BE(0, 24); //Credentials
+  buf.writeUInt32BE(0, 28); //Credentials
+  buf.writeUInt32BE(0, 32); //Verfifier
+  buf.writeUInt32BE(0, 36); //Verfifier
+  buf.writeUInt32BE(DEVICE_CORE_PROG, 40);
+  buf.writeUInt32BE(DEVICE_CORE_VERS, 44);
+  buf.writeUInt32BE(IPPROTO_TCP, 48);
+  buf.writeUInt32BE(0, 52); // Port
 
-  console.log('DESTROY_LINK call [%d]: %s', buf.length, util.inspect(buf));
-  client.write(buf);
+  socket.on('message', function (data, rinfo) {
+    console.log('GETPORT reply [%d]: %s', data.length, util.inspect(data));
+
+    var oldXid = clink.xid.readUInt32BE(0);/// TODO: XID check!
+    var newXid = data.readUInt32BE(0);
+
+    clink.port = data.readUInt32BE(PORT_OFFS);
+
+    socket.close();
+
+    if (typeof clbk == 'function') clbk(clink);
+  });
+
+  console.log('GETPORT call [%d]: %s', buf.length, util.inspect(buf));
+  socket.send(buf, 0, buf.length, PMAP_PORT, host);
 }
 
 function vxiReceive(clink, clbk) {
@@ -139,8 +147,8 @@ function vxiReceive(clink, clbk) {
   buf.writeUInt32BE(0, 40); // verifier
   buf.writeUInt32BE(clink.link_id, 44);
   buf.writeUInt32BE(REQUEST_SIZE, 48);
-  buf.writeUInt32BE(clink.readTimeout, 52);
-  buf.writeUInt32BE(clink.readTimeout, 56);
+  buf.writeUInt32BE(VXI11_IO_TIMEOUT, 52);
+  buf.writeUInt32BE(VXI11_LOCK_TIMEOUT, 56);
   buf.writeUInt32BE(0x00000000, 60); // Flags:
   // Bit0: Wait until locked -- Bit3: Set EOI -- Bit7: Termination character set
   buf.writeUInt32BE(0x00000000, 64); // termination character
@@ -177,8 +185,8 @@ function vxiSend(clink, cmd, clbk) {
     buf.writeUInt32BE(0, 36); //verifier
     buf.writeUInt32BE(0, 40); //verifier
     buf.writeUInt32BE(clink.link_id, 44);
-    buf.writeUInt32BE(clink.ioTimeout, 48);
-    buf.writeUInt32BE(clink.lockTimeout, 52);
+    buf.writeUInt32BE(VXI11_IO_TIMEOUT, 48);
+    buf.writeUInt32BE(VXI11_LOCK_TIMEOUT, 52);
     buf.writeUInt32BE(END_FLAG, 56);
     buf.writeUInt32BE(cmd.length, 60);
     tmpbuf.copy(buf,64);
@@ -214,7 +222,7 @@ function vxiSend(clink, cmd, clbk) {
     buf.writeUInt32BE(0, 40); // verifier
     buf.writeUInt32BE(0, 44); // client ID
     buf.writeUInt32BE(0, 48); // no lock device
-    buf.writeUInt32BE(clink.lockTimeout, 52);
+    buf.writeUInt32BE(VXI11_LOCK_TIMEOUT, 52); // lock time out
     buf.writeUInt32BE(DEVICE.length, 56);
     new Buffer(DEVICE, 'ascii').copy(buf, 60, 0, DEVICE.length);
     console.log('CREATE_LINK call [%d]: %s', buf.length, util.inspect(buf));
@@ -222,59 +230,72 @@ function vxiSend(clink, cmd, clbk) {
   });
 }
 
-vxiOpenDevice = function (p1, p2, p3) {
-  var clink, clbk;
+function vxiCloseDevice(clink, clbk) {
+  var client = clink.socket;
 
-  if (typeof p1 === 'object') {
-    clink = p1;
-    clbk = p2;
-  } else {
-    clink = { host:p1, device:p2 };
-    clbk = p3;
-  }
-
-  if (!clink.readTimeout) clink.readTimeout = VXI11_READ_TIMEOUT;
-  if (!clink.ioTimeout) clink.ioTimeout = VXI11_IO_TIMEOUT;
-  if (!clink.lockTimeout) clink.lockTimeout = VXI11_LOCK_TIMEOUT;
-
-  var socket = dgram.createSocket('udp4');
-
-  clink.xid = crypto.randomBytes(4);
-
-  var buf = new Buffer(56);
-  clink.xid.copy(buf, 0);
-  buf.writeUInt32BE(CALL, 4);
-  buf.writeUInt32BE(RPC_VERSION, 8);
-  buf.writeUInt32BE(PMAP_PROG,  12);
-  buf.writeUInt32BE(PMAP_VERS,  16);
-  buf.writeUInt32BE(PMAPPROC_GETPORT, 20);
-  buf.writeUInt32BE(0, 24); //Credentials
-  buf.writeUInt32BE(0, 28); //Credentials
-  buf.writeUInt32BE(0, 32); //Verfifier
-  buf.writeUInt32BE(0, 36); //Verfifier
-  buf.writeUInt32BE(DEVICE_CORE_PROG, 40);
-  buf.writeUInt32BE(DEVICE_CORE_VERS, 44);
-  buf.writeUInt32BE(IPPROTO_TCP, 48);
-  buf.writeUInt32BE(0, 52); // Port
-
-  socket.on('message', function (data, rinfo) {
-    console.log('GETPORT reply [%d]: %s', data.length, util.inspect(data));
-
-    var oldXid = clink.xid.readUInt32BE(0);/// TODO: XID check!
-    var newXid = data.readUInt32BE(0);
-
-    clink.port = data.readUInt32BE(PORT_OFFS);
-
-    socket.close();
-
-    if (typeof clbk == 'function') clbk(clink);
+  client.on('end', function(data) {
+    console.log('client disconnected');
+    if (typeof clbk == 'function') clbk();
   });
 
-  console.log('GETPORT call [%d]: %s', buf.length, util.inspect(buf));
-  socket.send(buf, 0, buf.length, PMAP_PORT, clink.host);
+  client.once('data', function(data) {
+    console.log('DESTROY_LINK reply [%d]: %s', data.length, util.inspect(data));
+    var oldXid = clink.xid.readUInt32BE(0);
+    var newXid = data.readUInt32BE(4);
+    clink.socket.end();
+  });
+
+  clink.xid = crypto.randomBytes(4);
+  var buf = new Buffer (48);
+
+  buf.writeUInt32BE(LAST_RECORD + buf.length - 4, 0);
+  clink.xid.copy(buf, 4);
+  buf.writeUInt32BE(CALL, 8);
+  buf.writeUInt32BE(RPC_VERSION, 12);
+  buf.writeUInt32BE(DEVICE_CORE_PROG, 16);
+  buf.writeUInt32BE(DEVICE_CORE_VERS, 20);
+  buf.writeUInt32BE(DESTROY_LINK, 24);
+  buf.writeUInt32BE(0, 28);// credentials
+  buf.writeUInt32BE(0, 32);// credentials
+  buf.writeUInt32BE(0, 36);// verifier
+  buf.writeUInt32BE(0, 40);// verifier
+  buf.writeUInt32BE(clink.link_id, 44);
+
+  console.log('DESTROY_LINK call [%d]: %s', buf.length, util.inspect(buf));
+  client.write(buf);
 }
 
-exports.vxiOpenDevice = vxiOpenDevice;
-exports.vxiSend = vxiSend;
-exports.vxiReceive = vxiReceive;
-exports.vxiCloseDevice = vxiCloseDevice;
+vxiOpenDevice(HOST, DEVICE, function(clink) {
+  vxiSend(clink, CMD, function(clink) {
+    vxiReceive(clink, function(clink, result) {
+      vxiCloseDevice(clink, function() {
+        console.log('result: »' + result + '«');
+      });
+    });
+  });
+});
+
+var aaa = "\r";
+console.log('aaa=%d', (typeof aaa == 'string') ? aaa.charCodeAt() : aaa);
+
+aaa = 10;
+console.log('aaa=%d', (typeof aaa == 'string') ? aaa.charCodeAt() : aaa);
+
+/*
+
+  configuration object:
+
+  {
+    host:"e75465",
+    device:"gpib0,10",
+    termchar:"\r", // String or number
+
+  }
+  if (typeof options === 'string') {
+    options = {uri:options}
+  }
+*/
+
+
+
+
