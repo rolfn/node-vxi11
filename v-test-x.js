@@ -1,18 +1,17 @@
 #!/usr/bin/env node
 
 /*
-  Rolf Niepraschk, Rolf.Niepraschk@ptb.de, 2014-04-23
+  Rolf Niepraschk, Rolf.Niepraschk@ptb.de, 2014-04-24
 */
-
-// XDR = External Data Representation
 
 var net = require('net');
 var dgram = require("dgram");
 var util = require('util');
 var crypto = require('crypto');
 var buffer = require('buffer');
+buffer.INSPECT_MAX_BYTES = 500;
 
-var HOST = '172.30.56.65';
+var HOST = 'e75465';
 var DEVICE = 'gpib0,10';
 
 ///var CMD = 'DATA?\n';
@@ -118,6 +117,7 @@ function vxiOpenDevice(host, device, clbk) {
     console.log('udp socket message: ' + util.inspect(msg));
     console.log('udp socket message.length: ' + msg.length);
 
+    /// TODO: ID-Check!
     var xid1 = clink.xid.readUInt32BE(0);
     var xid2 = msg.readUInt32BE(0);
 
@@ -148,15 +148,16 @@ function vxiReceive(clink, clbk) {
   client.on('data', function(data) {
 
     if (data.length > 36) {
-      console.log('receive request data (2): ' + util.inspect(data));
+
+      console.log('"DEVICE_READ" reply (2)');
+      console.log('buf[%s]: ', data.length, util.inspect(data));
       var len =  data.readInt32BE(36);
+      var str = data.toString('ascii', 40, len + 40);
       console.log('data length: ' + len);
-      //console.log('data: ' + data.toString('ascii', 40, len + 40));
-      //client.end();
-      if (typeof clbk == 'function') clbk(clink, data.toString('ascii', 40, len + 40));
+      if (typeof clbk == 'function') clbk(clink, str);
     } else {
-      console.log('receive request data (1): ' + util.inspect(data));
-      ///client.end();
+      console.log('"DEVICE_READ" reply (1)');
+      console.log('buf[%s]: ', data.length, util.inspect(data));
     }
   });
 
@@ -180,10 +181,11 @@ function vxiReceive(clink, clbk) {
   // Bit0: Wait until locked -- Bit3: Set EOI -- Bit7: Termination character set
   buf.writeUInt32BE(0x00000000, 64);  // termination character
 
-  client.setNoDelay(true);
-  client.write(buf, function () {
-    console.log('receive request sended');
-  });
+  console.log('"DEVICE_READ" call');
+  console.log('buf[%s]: ', buf.length, util.inspect(buf));
+
+  client.setNoDelay(true); // TODO: Früher?
+  client.write(buf);
 
 }
 
@@ -194,11 +196,11 @@ function vxiSend(clink, cmd, clbk) {
 
   client.once('data', function(data) {
     console.log('client data: ' + util.inspect(data));
-    /// ID-Check!
-    var xid1 = clink.xid.readUInt32BE(0);
+    /// TODO: ID-Check!
+    var str = clink.xid.readUInt32BE(0);
     var xid2 = data.readUInt32BE(4);
     clink.link_id = data.readUInt32BE(32);
-    console.log('xid1=%s    xid2=%s    link_id=%s', xid1, xid2, clink.link_id);
+    console.log('str=%s    xid2=%s    link_id=%s', str, xid2, clink.link_id);
     var mLength = cmd.length + (4 - (cmd.length % 4)); // multiple 4 Byte
     var tmpbuf = new Buffer(mLength);
     tmpbuf.fill(0);
@@ -222,10 +224,16 @@ function vxiSend(clink, cmd, clbk) {
     buf.writeUInt32BE(END_FLAG, 56);
     buf.writeUInt32BE(cmd.length, 60);
     tmpbuf.copy(buf,64);
-    console.log('VXI_send buf: ' +  util.inspect(buf));
-    client.write(buf, function () {
+    console.log('"DEVICE_WRITE" call');
+    console.log('buf[%s]: ', buf.length, util.inspect(buf));
+
+    client.once('data', function(data) {
+      console.log('"DEVICE_WRITE" reply');
+      console.log('buf[%s]: ', data.length, util.inspect(data));
       if (typeof clbk == 'function') clbk(clink);
     });
+
+    client.write(buf);
   });
 
   client.on('connect', function() {
@@ -251,22 +259,52 @@ function vxiSend(clink, cmd, clbk) {
     new Buffer(DEVICE, 'ascii').copy(buf, 60, 0, DEVICE.length);
 
     client.write(buf);
-
   });
-
 }
 
 function vxiCloseDevice(clink, clbk) {
   /// TODO: "DESTROY_LINK" !!!
-  clink.socket.end();
-  if (typeof clbk == 'function') clbk();
+
+  var client = clink.socket;
+
+  client.on('end', function(data) {
+    console.log('client disconnected');
+    if (typeof clbk == 'function') clbk();
+  });
+
+  client.once('data', function(data) {
+    console.log('"DESTROY_LINK" reply');
+    console.log('buf[%s]: ', data.length, util.inspect(data));
+    clink.socket.end();
+  });
+
+  clink.xid = crypto.randomBytes(4);
+  var buf = new Buffer (48);
+
+  buf.writeUInt32BE(LAST_RECORD + buf.length - 4, 0);
+  clink.xid.copy(buf, 4);
+  buf.writeUInt32BE(CALL, 8);
+  buf.writeUInt32BE(RPC_VERSION, 12);
+  buf.writeUInt32BE(DEVICE_CORE_PROG, 16);
+  buf.writeUInt32BE(DEVICE_CORE_VERS, 20);
+  buf.writeUInt32BE(DESTROY_LINK, 24);
+  buf.writeUInt32BE(0, 28);//  credentials
+  buf.writeUInt32BE(0, 32);//  credentials
+  buf.writeUInt32BE(0, 36);//  verifier
+  buf.writeUInt32BE(0, 40);//  verifier
+  buf.writeUInt32BE(clink.link_id, 44);
+
+  console.log('"DESTROY_LINK" call');
+  console.log('buf[%s]: ', buf.length, util.inspect(buf));
+  client.write(buf);
 }
 
 vxiOpenDevice(HOST, DEVICE, function(clink) {
   vxiSend(clink, CMD, function(clink) {
     vxiReceive(clink, function(clink, result) {
-      console.log('result: »' + result + '«');
-      vxiCloseDevice(clink);
+      vxiCloseDevice(clink, function() {
+        console.log('result: »' + result + '«');
+      });
     });
   });
 });
