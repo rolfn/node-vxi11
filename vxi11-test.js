@@ -24,7 +24,7 @@ var options = {
   ioTimeout: 6000,   // default: 10000ms
   lockTimeout: 6000, // default: 10000ms
   lockDevice: true,
-  //terminationChar: '\n',
+  //termChar: '\n',
   logger: { log: console.log, error: console.error }
 }
 

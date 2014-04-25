@@ -9,10 +9,10 @@ npm install vxi11
 
 ## To Use:
 
-### Simple call with defaults
+### Simple call with default parameters
 
 ```javascript
-var vxiTransceiver = require('./lib/vxi11.js').vxiTransceiver
+var vxiTransceiver = require('vxi11').vxiTransceiver
 ...
 vxiTransceiver('172.30.56.65', 'gpib0,10', '*IDN?\n', function(result) {
   console.log('result: »' + result + '«');
@@ -20,9 +20,10 @@ vxiTransceiver('172.30.56.65', 'gpib0,10', '*IDN?\n', function(result) {
 ...
 ```
 
-### Call with more parameters
+### Call with an options object
 
 ```javascript
+var vxiTransceiver = require('vxi11').vxiTransceiver
 ...
 var options = {
   host: '172.30.56.65',
@@ -32,19 +33,16 @@ var options = {
   ioTimeout: 6000,       // default: 10000ms
   lockTimeout: 6000,     // default: 10000ms
   lockDevice: true,      // default: true
-  terminationChar: '\n', // string or number; default: 0 (no term char)
+  termChar: '\n', // string or number; default: 0 (no termination char)
   logger: { log: console.log, error: console.error } // default: no logging
 }
+...
 vxiTransceiver(options, function(result) {
   console.log('result: »' + result + '«');
 });
 ```
 
-## Improvements
+## Possible improvements
 
-* Split into a real onc rpc module and a vxi-11 module.
+* Split into a real onc rpc module and a vxi-11 module
 * More vxi-11 functionality (e.g. SRQ)
-
-## Release History
-
-* 0.1.0 Initial release

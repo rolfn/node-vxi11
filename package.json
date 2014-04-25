@@ -1,6 +1,6 @@
 {
   "name": "node-vxi11",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "A nodejs module for VXI-11 communication.",
   "main": "lib/vxi11.js",
   "scripts": {
