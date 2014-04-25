@@ -5,15 +5,11 @@
 */
 
 var vxiTransceiver = require('./lib/vxi11.js').vxiTransceiver
-var util = require('util');
 
 var HOST = '172.30.56.65';
 var DEVICE = 'gpib0,10';
 
-var CMD = 'DATA?';
-var CMD = '*ESR?';
-var CMD = '*RST;*OPC?\n';
-//var CMD = '*IDN?\n';
+var CMD = '*IDN?\n';
 
 // example call with default parameters (no logging)
 vxiTransceiver(HOST, DEVICE, CMD, function(result) {
