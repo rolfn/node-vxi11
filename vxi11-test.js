@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
 /*
-  Rolf Niepraschk, Rolf.Niepraschk@gmx.de, 2014-04-24
+  Rolf Niepraschk, Rolf.Niepraschk@gmx.de, 2014-04-25
 */
 
-var vxi = require('./lib/vxi11.js');
+//var vxi = require('./lib/vxi11.js');
+var vxiTransceiver = require('./lib/vxi11.js').vxiTransceiver
 var util = require('util');
 
 var HOST = 'e75465';
@@ -15,34 +16,10 @@ var DEVICE = 'gpib0,10';
 var CMD = '*RST;*OPC?';
 var CMD = '*IDN?';
 
-function vxiTransceiver_1(host, device, command, clbk) {
-  vxi.vxiOpenDevice(host, device, function(clink) {
-    vxi.vxiSend(clink, command, function(clink) {
-      vxi.vxiReceive(clink, function(clink, result) {
-        vxi.vxiCloseDevice(clink, function() {
-          if (typeof clbk == 'function') clbk(result);
-        });
-      });
-    });
-  });
-}
-
 // example call with default parameters (no logging)
-vxiTransceiver_1(HOST, DEVICE, CMD, function(result) {
-  console.log('result 1: »' + result + '«');
+vxiTransceiver(HOST, DEVICE, CMD, function(result) {
+  console.log('*** result 1: »' + result + '«');
 });
-
-function vxiTransceiver_2(options, clbk) {
-  vxi.vxiOpenDevice(options, function(clink) {
-    vxi.vxiSend(clink, function(clink) {
-      vxi.vxiReceive(clink, function(clink, result) {
-        vxi.vxiCloseDevice(clink, function() {
-          if (typeof clbk == 'function') clbk(result);
-        });
-      });
-    });
-  });
-}
 
 var options = {
   host: HOST,
@@ -57,7 +34,7 @@ var options = {
 }
 
 // example call with an option object
-vxiTransceiver_2(options, function(result) {
-  console.log('result 2: »' + result + '«');
+vxiTransceiver(options, function(result) {
+  console.log('*** result 2: »' + result + '«');
 });
 
