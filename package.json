@@ -8,10 +8,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@a73435.berlin.ptb.de:rolf.niepraschk/node-vxi11.git"
+    "url": "https://github.com/rolfn/node-vxi11.git"
   },
   "keywords": [
-    "VXI-11"
+    "VXI-11", "RPC"
   ],
   "author": "Rolf Niepraschk <Rolf.Niepraschk@gmx.de>",
   "licenses": [
