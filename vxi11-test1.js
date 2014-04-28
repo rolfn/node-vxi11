@@ -6,20 +6,30 @@
 
 var vxiTransceiver = require('vxi11').vxiTransceiver
 
-var HOST = '172.30.56.65';
-var DEVICE = 'gpib0,10';
+var args = process.argv.slice(2);
 
-var CMD = '*IDN?\n';
+if (args.length < 3) {
+  console.error('Too few arguments!');
+  console.error('Example: %s %s "172.30.56.65" "gpib0,10" "*IDN?\\n"',
+    process.argv[0], require('path').basename(process.argv[1]));
+  process.exit(1);
+}
+
+var host = args[0];
+var device = args[1];
+var tmp = '{ "cmd":"' + args[2] + '"}';
+tmp = JSON.parse(tmp);
+var cmd = tmp.cmd;
 
 // example call with default parameters (no logging)
-vxiTransceiver(HOST, DEVICE, CMD, function(result) {
+vxiTransceiver(host, device, cmd, function(result) {
   console.log('*** result 1: »' + result + '«');
 });
 
 var options = {
-  host: HOST,
-  device: DEVICE,
-  command: CMD,
+  host: host,
+  device: device,
+  command: cmd,
   readTimeout: 3000, // default:  2000ms
   ioTimeout: 6000,   // default: 10000ms
   lockTimeout: 6000, // default: 10000ms
