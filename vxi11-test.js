@@ -4,7 +4,7 @@
   Rolf Niepraschk, Rolf.Niepraschk@gmx.de, 2014-04-25
 */
 
-var vxiTransceiver = require('./lib/vxi11.js').vxiTransceiver
+var vxiTransceiver = require('vxi11').vxiTransceiver
 
 var HOST = '172.30.56.65';
 var DEVICE = 'gpib0,10';
@@ -20,7 +20,7 @@ var options = {
   host: HOST,
   device: DEVICE,
   command: CMD,
-  readTimeout: 1000, // default:  2000ms
+  readTimeout: 3000, // default:  2000ms
   ioTimeout: 6000,   // default: 10000ms
   lockTimeout: 6000, // default: 10000ms
   lockDevice: true,

@@ -1,19 +1,29 @@
 {
-  "name": "node-vxi11",
-  "version": "0.0.1",
+  "name": "vxi11",
+  "version": "0.0.4",
   "description": "A nodejs module for VXI-11 communication.",
-  "main": "lib/vxi11.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "directories": {
+    "lib": "lib"
+  },
+  "main": "./lib/vxi11.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/rolfn/node-vxi11.git"
   },
+  "bugs": {
+    "url": "https://github.com/rolfn/node-vxi11/issues"
+  },
+  "readmeFilename": "README.md",
   "keywords": [
     "VXI-11", "RPC"
   ],
-  "author": "Rolf Niepraschk <Rolf.Niepraschk@gmx.de>",
+  "author": {
+    "name": "Rolf Niepraschk",
+    "email": "Rolf.Niepraschk@gmx.de"
+  },
   "licenses": [
     {
       "type": "MIT"
