@@ -45,3 +45,5 @@ vxiTransceiver(options, function(result) {
 
 * Split into a real onc rpc module and a vxi-11 module
 * More vxi-11 functionality (e.g. SRQ)
+* Better error handling
+
