@@ -1,6 +1,6 @@
 {
   "name": "vxi11",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "A nodejs module for VXI-11 communication.",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
