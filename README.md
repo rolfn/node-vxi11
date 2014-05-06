@@ -14,7 +14,7 @@ npm install vxi11
 ```javascript
 var vxiTransceiver = require('vxi11').vxiTransceiver
 ...
-vxiTransceiver('172.30.56.65', 'gpib0,10', '*IDN?\n', function(result) {
+vxiTransceiver('172.30.56.65', 'gpib0,10', '*IDN?\n', function(result, error) {
   console.log('result: »' + result + '«');
 });
 ```
@@ -36,8 +36,12 @@ var options = {
   logger: { log: console.log, error: console.error } // default: no logging
 }
 ...
-vxiTransceiver(options, function(result) {
-  console.log('result: »' + result + '«');
+vxiTransceiver(options, function(result, error) {
+  if (error) {
+    console.log('error: »' + error + '«');
+  } else {
+    console.log('result: »' + result + '«');
+  }
 });
 ```
 
