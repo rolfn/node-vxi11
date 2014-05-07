@@ -22,7 +22,7 @@ tmp = JSON.parse(tmp);
 var cmd = tmp.cmd;
 
 // example call with default parameters (no logging)
-vxiTransceiver(host, device, cmd, function(result) {
+vxiTransceiver(host, device, cmd, function(result, error) {
   console.log('*** result 1: »' + result + '«');
 });
 
@@ -39,9 +39,11 @@ var options = {
 }
 
 // example call with an option object
-vxiTransceiver(options, function(result) {
-  console.log('*** result 2: »' + result + '«');
+vxiTransceiver(options, function(result, error) {
+  console.log('*** result 2: »' + result + '«' +
+    (error ? ' (error: ' + error + ')': ''));
 });
+
 
 
 
