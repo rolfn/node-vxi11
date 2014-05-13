@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /*
-  Rolf Niepraschk, Rolf.Niepraschk@gmx.de, 2014-04-25
+  Rolf Niepraschk, Rolf.Niepraschk@gmx.de, 2014-05-13
 */
 
 var vxiTransceiver = require('vxi11').vxiTransceiver
@@ -22,7 +22,7 @@ tmp = JSON.parse(tmp);
 var cmd = tmp.cmd;
 
 // example call with default parameters (no logging)
-vxiTransceiver(host, device, cmd, function(result, error) {
+vxiTransceiver(host, device, cmd, function(result) {
   console.log('*** result 1: »' + result + '«');
 });
 
@@ -39,9 +39,10 @@ var options = {
 }
 
 // example call with an option object
-vxiTransceiver(options, function(result, error) {
-  console.log('*** result 2: »' + result + '«' +
-    (error ? ' (error: ' + error + ')': ''));
+vxiTransceiver(options, function(result) {
+  console.log('*** result: »' + result + '«');
+},function(error) {
+  console.log('*** error: »' + error + '«');
 });
 
 

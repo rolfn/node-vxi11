@@ -20,6 +20,10 @@ http.createServer(function (req, res) {
       res.writeHead(200, headers);
       res.write(result);
       res.end();
+    }, function(error) {
+      res.writeHead(200, headers);
+      res.write(error);
+      res.end();
     });
   } else {
     res.writeHead(500, headers);
@@ -29,3 +33,7 @@ http.createServer(function (req, res) {
 }).listen(PORT);
 
 console.log('Server running at http://127.0.0.1:' + PORT + '/');
+
+// URL: http://localhost:44444/?host=e75481&device=gpib0,5&command=*IDN?
+
+
