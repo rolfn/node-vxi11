@@ -4,12 +4,12 @@
 
 A nodejs module for VXI-11 communication.
 
-## Install:
+## Install
 ```
 npm install vxi11
 ```
 
-## Use:
+## Use
 
 ### Simple call with default parameters
 
