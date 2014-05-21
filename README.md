@@ -1,6 +1,6 @@
 # node-vxi11
 
-[![NPM](https://nodei.co/npm/node-vxi11.png)](https://nodei.co/npm/node-vxi11/)
+[![NPM](https://nodei.co/npm/vxi11.png)](https://nodei.co/npm/vxi11/)
 
 A nodejs module for VXI-11 communication.
 
