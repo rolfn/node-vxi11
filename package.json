@@ -16,7 +16,6 @@
   "bugs": {
     "url": "https://github.com/rolfn/node-vxi11/issues"
   },
-  "readmeFilename": "README.md",
   "keywords": [
     "VXI-11", "RPC"
   ],
