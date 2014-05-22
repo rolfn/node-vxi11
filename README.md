@@ -35,7 +35,8 @@ var options = {
   lockTimeout: 6000,     // default: 10000ms
   lockDevice: true,      // default: true
   termChar: '\n', // string or number; default: 0 (no termination char)
-  logger: { log: console.log, error: console.error } // default: no logging
+  logger: { log: console.log, error: console.error }, // default: no logging
+  encoding: 'utf8'       // 'binary' (Buffer), 'base64'; default: 'utf8'
 }
 ...
 vxiTransceiver(options, function(result) {
