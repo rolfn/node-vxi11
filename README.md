@@ -46,6 +46,8 @@ vxiTransceiver(options, function(result) {
 });
 ```
 
+Note: The special case 'readTimeout:0' ignores an IO timeout for buggy devices.
+
 ## Possible improvements
 
 * Split into a real onc rpc module and a vxi-11 module
