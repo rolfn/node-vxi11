@@ -46,7 +46,9 @@ vxiTransceiver(options, function(result) {
 });
 ```
 
-Note: The special case 'readTimeout:0' ignores an IO timeout for buggy devices.
+Note for the special case 'readTimeout:0':
+* Ignores I/O timeout in DEVICE_READ procedure for buggy devices.
+* Sends null back if missing response from buggy devices.
 
 ## Possible improvements
 
